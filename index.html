@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Directorio Local</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Estilos personalizados */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .highlight-row {
+            background-color: #FEF3C7 !important;
+        }
+        
+        .expired-row {
+            background-color: #FECACA !important;
+        }
+        
+        .soon-expire-row {
+            background-color: #FDE68A !important;
+        }
+        
+        /* Scrollbar personalizada */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Estilos para móviles */
+        @media (max-width: 640px) {
+            .mobile-hidden {
+                display: none;
+            }
+            
+            .mobile-flex-col {
+                flex-direction: column;
+            }
+            
+            .mobile-text-sm {
+                font-size: 0.875rem;
+            }
+            
+            .mobile-p-2 {
+                padding: 0.5rem;
+            }
+            
+            .mobile-px-3 {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+            
+            .mobile-py-2 {
+                padding-top: 0.5rem;
+                padding-bottom: 0.5rem;
+            }
+            
+            .mobile-w-full {
+                width: 100%;
+            }
+            
+            .mobile-text-xs {
+                font-size: 0.75rem;
+            }
+            
+            .mobile-truncate {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+        }
+    </style>
+<!-- Header Responsive -->
+        <header class="bg-indigo-700 text-white shadow-lg">
+            <div class="container mx-auto px-2 sm:px-4 py-3 flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-building text-xl sm:text-2xl"></i>
+                    <h1 class="text-xl sm:text-2xl font-bold">Panel de Administración</h1>
+                </div>
+                <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+                    <button id="viewExpiringBtn" class="bg-amber-500 hover:bg-amber-600 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium flex items-center justify-center text-sm sm:text-base">
+                        <i class="fas fa-clock mr-1 sm:mr-2"></i> Próximos a vencer
+                    </button>
+                    <button id="addBusinessBtn" class="bg-green-500 hover:bg-green-600 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium flex items-center justify-center text-sm sm:text-base">
+                        <i class="fas fa-plus mr-1 sm:mr-2"></i> Agregar Negocio
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow container mx-auto px-2 sm:px-4 py-3 sm:py-6">
+            <!-- Filtros y búsqueda - Versión móvil apilada -->
+            <div class="bg-white rounded-lg shadow-md p-2 sm:p-4 mb-4 sm:mb-6">
+                <div class="flex flex-col gap-2 sm:gap-4">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-search text-gray-400"></i>
+                        </div>
+                        <input type="text" id="searchInput" placeholder="Buscar..." 
+                               class="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base">
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label for="membershipFilter" class="text-gray-700 font-medium text-sm sm:text-base">Filtrar:</label>
+                        <select id="membershipFilter" class="border border-gray-300 rounded-lg px-2 py-1 sm:px-3 sm:py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base">
+                            <option value="all">Todos</option>
+                            <option value="active">Activos</option>
+                            <option value="expired">Expirados</option>
+                            <option value="expiring">Próximos</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de negocios - Versión móvil simplificada -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50 mobile-hidden">
+                            <tr>
+                                <th scope="col" class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                <th scope="col" class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Negocio</th>
+                                <th scope="col" class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Propietario</th>
+                                <th scope="col" class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
+                                <th scope="col" class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inicio</th>
+                                <th scope="col" class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fin</th>
+                                <th scope="col" class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Días</th>
+                                <th scope="col" class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="businessTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- Los datos se cargarán dinámicamente aquí -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="noResults" class="p-6 sm:p-8 text-center text-gray-500 hidden">
+                    <i class="fas fa-exclamation-circle text-2xl sm:text-3xl mb-2"></i>
+                    <p class="text-sm sm:text-lg">No se encontraron resultados</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-gray-800 text-white py-3 sm:py-4">
+            <div class="container mx-auto px-4 text-center text-xs sm:text-sm">
+                <p>© 2023 Directorio Local</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal para agregar/editar negocio - Versión móvil más compacta -->
+    <div id="businessModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto fade-in">
+            <div class="flex justify-between items-center border-b px-4 sm:px-6 py-3 sm:py-4 sticky top-0 bg-white z-10">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-800" id="modalTitle">Agregar Negocio</h3>
+                <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-4 sm:p-6">
+                <form id="businessForm">
+                    <input type="hidden" id="businessId">
+                    <div class="grid grid-cols-1 gap-3 sm:gap-4 mb-3 sm:mb-4">
+                        <div>
+                            <label for="businessNumber" class="block text-sm font-medium text-gray-700 mb-1">Número de negocio</label>
+                            <input type="text" id="businessNumber" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base">
+                        </div>
+                        <div>
+                            <label for="businessName" class="block text-sm font-medium text-gray-700 mb-1">Nombre del negocio</label>
+                            <input type="text" id="businessName" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 sm:gap-4 mb-3 sm:mb-4">
+                        <div>
+                            <label for="ownerName" class="block text-sm font-medium text-gray-700 mb-1">Propietario</label>
+                            <input type="text" id="ownerName" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base">
+                        </div>
+                        <div>
+                            <label for="phoneNumber" class="block text-sm font-medium text-gray-700 mb-1">Celular</label>
+                            <input type="tel" id="phoneNumber" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                        <div>
+                            <label for="startDate" class="block text-sm font-medium text-gray-700 mb-1">Fecha inicio</label>
+                            <input type="date" id="startDate" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base">
+                        </div>
+                        <div>
+                            <label for="membershipType" class="block text-sm font-medium text-gray-700 mb-1">Membresía</label>
+                            <select id="membershipType" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base">
+                                <option value="6">Básica (6 meses)</option>
+                                <option value="12">Premium (1 año)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-2 sm:space-x-3">
+                        <button type="button" id="cancelBtn" class="px-3 py-1 sm:px-4 sm:py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 text-sm sm:text-base">Cancelar</button>
+                        <button type="submit" id="saveBtn" class="px-3 py-1 sm:px-4 sm:py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm sm:text-base">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para renovar membresía - Versión móvil más compacta -->
+    <div id="renewModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto fade-in">
+            <div class="flex justify-between items-center border-b px-4 sm:px-6 py-3 sm:py-4 sticky top-0 bg-white z-10">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-800">Renovar</h3>
+                <button id="closeRenewModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-4 sm:p-6">
+                <div class="mb-3 sm:mb-4">
+                    <p class="text-gray-700 mb-1 sm:mb-2 text-sm sm:text-base"><span class="font-semibold">Negocio:</span> <span id="renewBusinessName"></span></p>
+                    <p class="text-gray-700 mb-1 sm:mb-2 text-sm sm:text-base"><span class="font-semibold">Propietario:</span> <span id="renewOwnerName"></span></p>
+                    <p class="text-gray-700 mb-2 sm:mb-4 text-sm sm:text-base"><span class="font-semibold">Vence:</span> <span id="renewEndDate" class="text-red-600"></span></p>
+                </div>
+                <form id="renewForm">
+                    <input type="hidden" id="renewBusinessId">
+                    <div class="grid grid-cols-1 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                        <div>
+                            <label for="renewMembershipType" class="block text-sm font-medium text-gray-700 mb-1">Nueva membresía</label>
+                            <select id="renewMembershipType" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base">
+                                <option value="6">Básica (6 meses)</option>
+                                <option value="12">Premium (1 año)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="renewStartDate" class="block text-sm font-medium text-gray-700 mb-1">Fecha inicio</label>
+                            <input type="date" id="renewStartDate" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base">
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-2 sm:space-x-3">
+                        <button type="button" id="cancelRenewBtn" class="px-3 py-1 sm:px-4 sm:py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 text-sm sm:text-base">Cancelar</button>
+                        <button type="submit" id="confirmRenewBtn" class="px-3 py-1 sm:px-4 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm sm:text-base">Renovar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmación para eliminar - Versión móvil más compacta -->
+    <div id="confirmDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md fade-in">
+            <div class="flex justify-between items-center border-b px-4 sm:px-6 py-3 sm:py-4">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-800">Confirmar Eliminación</h3>
+                <button id="closeDeleteModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-4 sm:p-6">
+                <p class="text-gray-700 mb-4 sm:mb-6 text-sm sm:text-base">¿Estás seguro que deseas eliminar este negocio? Esta acción no se puede deshacer.</p>
+                <div class="flex justify-end space-x-2 sm:space-x-3">
+                    <button type="button" id="cancelDeleteBtn" class="px-3 py-1 sm:px-4 sm:py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 text-sm sm:text-base">Cancelar</button>
+                    <button type="button" id="confirmDeleteBtn" class="px-3 py-1 sm:px-4 sm:py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm sm:text-base">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let businesses = JSON.parse(localStorage.getItem('businesses')) || [];
+        let currentBusinessId = null;
+        let isViewingExpiring = false;
+
+        // DOM Elements
+        const businessTableBody = document.getElementById('businessTableBody');
+        const noResults = document.getElementById('noResults');
+        const searchInput = document.getElementById('searchInput');
+        const membershipFilter = document.getElementById('membershipFilter');
+        const viewExpiringBtn = document.getElementById('viewExpiringBtn');
+        const addBusinessBtn = document.getElementById('addBusinessBtn');
+
+        // Modal elements
+        const businessModal = document.getElementById('businessModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const businessForm = document.getElementById('businessForm');
+        const businessIdInput = document.getElementById('businessId');
+        const businessNumberInput = document.getElementById('businessNumber');
+        const businessNameInput = document.getElementById('businessName');
+        const ownerNameInput = document.getElementById('ownerName');
+        const phoneNumberInput = document.getElementById('phoneNumber');
+        const startDateInput = document.getElementById('startDate');
+        const membershipTypeInput = document.getElementById('membershipType');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const saveBtn = document.getElementById('saveBtn');
+
+        // Renew modal elements
+        const renewModal = document.getElementById('renewModal');
+        const renewForm = document.getElementById('renewForm');
+        const renewBusinessName = document.getElementById('renewBusinessName');
+        const renewOwnerName = document.getElementById('renewOwnerName');
+        const renewEndDate = document.getElementById('renewEndDate');
+        const renewBusinessId = document.getElementById('renewBusinessId');
+        const renewMembershipType = document.getElementById('renewMembershipType');
+        const renewStartDate = document.getElementById('renewStartDate');
+        const closeRenewModalBtn = document.getElementById('closeRenewModalBtn');
+        const cancelRenewBtn = document.getElementById('cancelRenewBtn');
+        const confirmRenewBtn = document.getElementById('confirmRenewBtn');
+
+        // Delete modal elements
+        const confirmDeleteModal = document.getElementById('confirmDeleteModal');
+        const closeDeleteModalBtn = document.getElementById('closeDeleteModalBtn');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            renderBusinesses();
+            
+            // Set today's date as default for forms
+            const today = new Date().toISOString().split('T')[0];
+            startDateInput.value = today;
+            renewStartDate.value = today;
+            
+            // Generate business number if adding new
+            businessNumberInput.value = generateBusinessNumber();
+        });
+
+        searchInput.addEventListener('input', () => {
+            renderBusinesses();
+        });
+
+        membershipFilter.addEventListener('change', () => {
+            renderBusinesses();
+        });
+
+        viewExpiringBtn.addEventListener('click', () => {
+            isViewingExpiring = !isViewingExpiring;
+            if (isViewingExpiring) {
+                viewExpiringBtn.classList.remove('bg-amber-500', 'hover:bg-amber-600');
+                viewExpiringBtn.classList.add('bg-indigo-500', 'hover:bg-indigo-600');
+                viewExpiringBtn.innerHTML = '<i class="fas fa-list mr-1 sm:mr-2"></i><span class="mobile-hidden">Ver todos</span>';
+            } else {
+                viewExpiringBtn.classList.remove('bg-indigo-500', 'hover:bg-indigo-600');
+                viewExpiringBtn.classList.add('bg-amber-500', 'hover:bg-amber-600');
+                viewExpiringBtn.innerHTML = '<i class="fas fa-clock mr-1 sm:mr-2"></i><span class="mobile-hidden">Próximos</span>';
+            }
+            renderBusinesses();
+        });
+
+        addBusinessBtn.addEventListener('click', () => {
+            openAddBusinessModal();
+        });
+
+        // Business modal events
+        closeModalBtn.addEventListener('click', closeBusinessModal);
+        cancelBtn.addEventListener('click', closeBusinessModal);
+        businessForm.addEventListener('submit', handleBusinessFormSubmit);
+
+        // Renew modal events
+        closeRenewModalBtn.addEventListener('click', closeRenewModal);
+        cancelRenewBtn.addEventListener('click', closeRenewModal);
+        renewForm.addEventListener('submit', handleRenewFormSubmit);
+
+        // Delete modal events
+        closeDeleteModalBtn.addEventListener('click', closeDeleteModal);
+        cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+        confirmDeleteBtn.addEventListener('click', confirmDeleteBusiness);
+
+        // Functions
+        function renderBusinesses() {
+            const searchTerm = removeAccents(searchInput.value.toLowerCase());
+            const filterValue = membershipFilter.value;
+            
+            let filteredBusinesses = businesses;
+            
+            // Apply search filter
+            if (searchTerm) {
+                filteredBusinesses = filteredBusinesses.filter(business => 
+                    removeAccents(business.businessName.toLowerCase()).includes(searchTerm) || 
+                    removeAccents(business.ownerName.toLowerCase()).includes(searchTerm)
+                );
+            }
+            
+            // Apply membership status filter
+            if (filterValue !== 'all') {
+                filteredBusinesses = filteredBusinesses.filter(business => {
+                    const daysRemaining = getDaysRemaining(business.endDate);
+                    
+                    if (filterValue === 'active') {
+                        return daysRemaining > 0;
+                    } else if (filterValue === 'expired') {
+                        return daysRemaining <= 0;
+                    } else if (filterValue === 'expiring') {
+                        return daysRemaining > 0 && daysRemaining <= 30;
+                    }
+                    return true;
+                });
+            }
+            
+            // Show only expiring memberships if that view is active
+            if (isViewingExpiring) {
+                filteredBusinesses = filteredBusinesses.filter(business => {
+                    const daysRemaining = getDaysRemaining(business.endDate);
+                    return daysRemaining > 0 && daysRemaining <= 30;
+                });
+            }
+            
+            // Sort by days remaining (ascending)
+            filteredBusinesses.sort((a, b) => {
+                return getDaysRemaining(a.endDate) - getDaysRemaining(b.endDate);
+            });
+            
+            // Clear table
+            businessTableBody.innerHTML = '';
+            
+            if (filteredBusinesses.length === 0) {
+                noResults.classList.remove('hidden');
+            } else {
+                noResults.classList.add('hidden');
+                
+                filteredBusinesses.forEach(business => {
+                    const daysRemaining = getDaysRemaining(business.endDate);
+                    const isExpired = daysRemaining <= 0;
+                    const isExpiringSoon = !isExpired && daysRemaining <= 30;
+                    
+                    // Create mobile card view
+                    if (window.innerWidth < 640) {
+                        const card = document.createElement('div');
+                        card.className = `p-3 border-b border-gray-200 ${isExpired ? 'expired-row' : isExpiringSoon ? 'soon-expire-row' : ''}`;
+                        
+                        card.innerHTML = `
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 truncate">${business.businessName}</p>
+                                    <p class="text-xs text-gray-500 truncate">${business.ownerName}</p>
+                                </div>
+                                <div class="ml-2 flex-shrink-0 flex space-x-1">
+                                    <button class="text-indigo-600 hover:text-indigo-900 edit-btn" data-id="${business.id}">
+                                        <i class="fas fa-edit text-sm"></i>
+                                    </button>
+                                    <button class="text-green-600 hover:text-green-900 renew-btn" data-id="${business.id}">
+                                        <i class="fas fa-sync-alt text-sm"></i>
+                                    </button>
+                                    <button class="text-red-600 hover:text-red-900 delete-btn" data-id="${business.id}">
+                                        <i class="fas fa-trash text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mt-2 grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                    <p class="text-gray-500">ID:</p>
+                                    <p class="text-gray-700">${business.businessNumber}</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500">Teléfono:</p>
+                                    <p class="text-gray-700">${business.phoneNumber}</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500">Inicio:</p>
+                                    <p class="text-gray-700">${formatDateShort(business.startDate)}</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500">Fin:</p>
+                                    <p class="text-gray-700">${formatDateShort(business.endDate)}</p>
+                                </div>
+                            </div>
+                            <div class="mt-2 flex justify-between items-center">
+                                <span class="text-xs ${isExpired ? 'text-red-600' : isExpiringSoon ? 'text-amber-600' : 'text-green-600'} font-medium">
+                                    ${isExpired ? 'Expirada' : `${daysRemaining} días`}
+                                </span>
+                            </div>
+                        `;
+                        
+                        businessTableBody.appendChild(card);
+                    } else {
+                        // Desktop table row view
+                        const row = document.createElement('tr');
+                        
+                        // Apply different background based on membership status
+                        if (isExpired) {
+                            row.classList.add('expired-row');
+                        } else if (isExpiringSoon) {
+                            row.classList.add('soon-expire-row');
+                        }
+                        
+                        row.innerHTML = `
+                            <td class="px-3 sm:px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${business.businessNumber}</td>
+                            <td class="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-500">${business.businessName}</td>
+                            <td class="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-500">${business.ownerName}</td>
+                            <td class="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-500">${business.phoneNumber}</td>
+                            <td class="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-500">${formatDateShort(business.startDate)}</td>
+                            <td class="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-500">${formatDateShort(business.endDate)}</td>
+                            <td class="px-3 sm:px-6 py-3 whitespace-nowrap text-sm font-medium ${isExpired ? 'text-red-600' : isExpiringSoon ? 'text-amber-600' : 'text-green-600'}">
+                                ${isExpired ? 'Expirada' : `${daysRemaining} días`}
+                            </td>
+                            <td class="px-3 sm:px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                <button class="text-indigo-600 hover:text-indigo-900 mr-2 sm:mr-3 edit-btn" data-id="${business.id}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="text-green-600 hover:text-green-900 mr-2 sm:mr-3 renew-btn" data-id="${business.id}">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                                <button class="text-red-600 hover:text-red-900 delete-btn" data-id="${business.id}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        `;
+                        
+                        businessTableBody.appendChild(row);
+                    }
+                });
+                
+                // Add event listeners to buttons in the table/cards
+                document.querySelectorAll('.edit-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const id = e.currentTarget.getAttribute('data-id');
+                        openEditBusinessModal(id);
+                    });
+                });
+                
+                document.querySelectorAll('.renew-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const id = e.currentTarget.getAttribute('data-id');
+                        openRenewModal(id);
+                    });
+                });
+                
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const id = e.currentTarget.getAttribute('data-id');
+                        openDeleteModal(id);
+                    });
+                });
+            }
+        }
+        
+        function openAddBusinessModal() {
+            modalTitle.textContent = 'Agregar Negocio';
+            businessForm.reset();
+            businessIdInput.value = '';
+            businessNumberInput.value = generateBusinessNumber();
+            businessModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function openEditBusinessModal(id) {
+            const business = businesses.find(b => b.id === id);
+            if (business) {
+                modalTitle.textContent = 'Editar Negocio';
+                businessIdInput.value = business.id;
+                businessNumberInput.value = business.businessNumber;
+                businessNameInput.value = business.businessName;
+                ownerNameInput.value = business.ownerName;
+                phoneNumberInput.value = business.phoneNumber;
+                startDateInput.value = business.startDate;
+                membershipTypeInput.value = business.membershipType;
+                businessModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+        
+        function openRenewModal(id) {
+            const business = businesses.find(b => b.id === id);
+            if (business) {
+                renewBusinessId.value = business.id;
+                renewBusinessName.textContent = business.businessName;
+                renewOwnerName.textContent = business.ownerName;
+                renewEndDate.textContent = formatDateShort(business.endDate);
+                
+                // Set today's date as default for renewal
+                const today = new Date().toISOString().split('T')[0];
+                renewStartDate.value = today;
+                
+                renewModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+        
+        function openDeleteModal(id) {
+            currentBusinessId = id;
+            confirmDeleteModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeBusinessModal() {
+            businessModal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+        
+        function closeRenewModal() {
+            renewModal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+        
+        function closeDeleteModal() {
+            confirmDeleteModal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+        
+        function handleBusinessFormSubmit(e) {
+            e.preventDefault();
+            
+            const id = businessIdInput.value;
+            const businessNumber = businessNumberInput.value;
+            const businessName = businessNameInput.value;
+            const ownerName = ownerNameInput.value;
+            const phoneNumber = phoneNumberInput.value;
+            const startDate = startDateInput.value;
+            const membershipType = membershipTypeInput.value;
+            
+            // Calculate end date based on membership type
+            const endDate = calculateEndDate(startDate, parseInt(membershipType));
+            
+            if (id) {
+                // Edit existing business
+                const index = businesses.findIndex(b => b.id === id);
+                if (index !== -1) {
+                    businesses[index] = {
+                        ...businesses[index],
+                        businessNumber,
+                        businessName,
+                        ownerName,
+                        phoneNumber,
+                        startDate,
+                        endDate,
+                        membershipType
+                    };
+                }
+            } else {
+                // Add new business
+                const newBusiness = {
+                    id: generateId(),
+                    businessNumber,
+                    businessName,
+                    ownerName,
+                    phoneNumber,
+                    startDate,
+                    endDate,
+                    membershipType,
+                    createdAt: new Date().toISOString()
+                };
+                
+                businesses.push(newBusiness);
+            }
+            
+            saveBusinesses();
+            renderBusinesses();
+            closeBusinessModal();
+        }
+        
+        function handleRenewFormSubmit(e) {
+            e.preventDefault();
+            
+            const id = renewBusinessId.value;
+            const startDate = renewStartDate.value;
+            const membershipType = renewMembershipType.value;
+            
+            // Calculate new end date
+            const endDate = calculateEndDate(startDate, parseInt(membershipType));
+            
+            // Update the business
+            const index = businesses.findIndex(b => b.id === id);
+            if (index !== -1) {
+                businesses[index] = {
+                    ...businesses[index],
+                    startDate,
+                    endDate,
+                    membershipType
+                };
+                
+                saveBusinesses();
+                renderBusinesses();
+                closeRenewModal();
+            }
+        }
+        
+        function confirmDeleteBusiness() {
+            if (currentBusinessId) {
+                businesses = businesses.filter(b => b.id !== currentBusinessId);
+                saveBusinesses();
+                renderBusinesses();
+                closeDeleteModal();
+            }
+        }
+        
+        function saveBusinesses() {
+            localStorage.setItem('businesses', JSON.stringify(businesses));
+        }
+        
+        function calculateEndDate(startDate, months) {
+            const date = new Date(startDate);
+            date.setMonth(date.getMonth() + months);
+            return date.toISOString().split('T')[0];
+        }
+        
+        function getDaysRemaining(endDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const end = new Date(endDate);
+            end.setHours(0, 0, 0, 0);
+            const diffTime = end - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays;
+        }
+        
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString('es-ES', options);
+        }
+        
+        function formatDateShort(dateString) {
+            const options = { month: 'short', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString('es-ES', options);
+        }
+        
+        function removeAccents(str) {
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
+        
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+        
+        function generateBusinessNumber() {
+            const prefix = 'DIR';
+            const randomNum = Math.floor(1000 + Math.random() * 9000);
+            return `${prefix}-${randomNum}`;
+        }
+        
+        // Handle window resize to switch between card and table views
+        window.addEventListener('resize', () => {
+            renderBusinesses();
+        });
+    </script>
+</body>
+</html>
