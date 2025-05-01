@@ -96,10 +96,10 @@
             <div class="container mx-auto px-2 sm:px-4 py-3 flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
                 <div class="flex items-center space-x-2">
                     <i class="fas fa-building text-xl sm:text-2xl"></i>
-                    <h1 class="text-xl sm:text-2xl font-bold">Panel de Administración</h1>
+                    <h1 class="text-xl sm:text-2xl font-bold">Administración DirectorioPro</h1>
                 </div>
                 <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
-                    <button id="viewExpiringBtn" class="bg-amber-500 hover:bg-amber-600 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium flex items-center justify-center text-sm sm:text-base">
+                    <button id="viewExpiringBtn" class="bg-red-500 hover:bg-red-600 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium flex items-center justify-center text-sm sm:text-base">
                         <i class="fas fa-clock mr-1 sm:mr-2"></i> Próximos a vencer
                     </button>
                     <button id="addBusinessBtn" class="bg-green-500 hover:bg-green-600 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium flex items-center justify-center text-sm sm:text-base">
@@ -164,7 +164,7 @@
         <!-- Footer -->
         <footer class="bg-gray-800 text-white py-3 sm:py-4">
             <div class="container mx-auto px-4 text-center text-xs sm:text-sm">
-                <p>© 2023 Directorio Local</p>
+                <p>© 2025 Admin Directorio LR</p>
             </div>
         </footer>
     </div>
@@ -421,6 +421,14 @@
                     return true;
                 });
             }
+          
+          // Ordenar por ID de negocio de mayor a menor
+            filteredBusinesses.sort((a, b) => {
+                // Extraer el número de la ID (ej: DIR-1234 -> 1234)
+                const aNum = parseInt(a.businessNumber.split('-')[1]);
+                const bNum = parseInt(b.businessNumber.split('-')[1]);
+                return bNum - aNum; // Orden descendente
+            });
             
             // Show only expiring memberships if that view is active
             if (isViewingExpiring) {
@@ -746,10 +754,13 @@
             return Date.now().toString(36) + Math.random().toString(36).substr(2);
         }
         
-        function generateBusinessNumber() {
+            function generateBusinessNumber() {
             const prefix = 'DIR';
-            const randomNum = Math.floor(1000 + Math.random() * 9000);
-            return `${prefix}-${randomNum}`;
+            const lastNumber = businesses.reduce((max, business) => {
+                const currentNum = parseInt(business.businessNumber.split('-')[1]);
+                return currentNum > max ? currentNum : max;
+            }, 0);
+            return `${prefix}-${String(lastNumber + 1).padStart(4, '0')}`;
         }
         
         // Handle window resize to switch between card and table views
