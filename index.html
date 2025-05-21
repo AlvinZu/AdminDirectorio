@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Administración - Directorio Local</title>
+    <title>AdminDirectorio</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  
     <style>
         /* Estilos personalizados */
         .fade-in {
@@ -105,6 +108,9 @@
                     <button id="addBusinessBtn" class="bg-green-500 hover:bg-green-600 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium flex items-center justify-center text-sm sm:text-base">
                         <i class="fas fa-plus mr-1 sm:mr-2"></i> Agregar Negocio
                     </button>
+                  <button id="exportPdfBtn" class="bg-blue-500 hover:bg-blue-600 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium flex items-center justify-center text-sm sm:text-base">
+    <i class="fas fa-file-pdf mr-1 sm:mr-2"></i> Exportar PDF
+</button>
                 </div>
             </div>
         </header>
@@ -317,6 +323,7 @@
         const closeModalBtn = document.getElementById('closeModalBtn');
         const cancelBtn = document.getElementById('cancelBtn');
         const saveBtn = document.getElementById('saveBtn');
+      const exportPdfBtn = document.getElementById('exportPdfBtn');
 
         // Renew modal elements
         const renewModal = document.getElementById('renewModal');
@@ -380,6 +387,7 @@
         closeModalBtn.addEventListener('click', closeBusinessModal);
         cancelBtn.addEventListener('click', closeBusinessModal);
         businessForm.addEventListener('submit', handleBusinessFormSubmit);
+      exportPdfBtn.addEventListener('click', exportToPdf);
 
         // Renew modal events
         closeRenewModalBtn.addEventListener('click', closeRenewModal);
@@ -763,6 +771,89 @@
             return `${prefix}-${String(lastNumber + 1).padStart(4, '0')}`;
         }
         
+      
+      //Generar PDF
+      function exportToPdf() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('landscape');
+    
+    // Filtrado igual que en renderBusinesses
+    const searchTerm = removeAccents(searchInput.value.toLowerCase());
+    const filterValue = membershipFilter.value;
+    
+    let filteredBusinesses = businesses.filter(business => {
+        const matchesSearch = removeAccents(business.businessName.toLowerCase()).includes(searchTerm) || 
+                            removeAccents(business.ownerName.toLowerCase()).includes(searchTerm);
+        
+        const daysRemaining = getDaysRemaining(business.endDate);
+        let matchesFilter = true;
+        
+        if (filterValue === 'active') matchesFilter = daysRemaining > 0;
+        if (filterValue === 'expired') matchesFilter = daysRemaining <= 0;
+        if (filterValue === 'expiring') matchesFilter = daysRemaining > 0 && daysRemaining <= 30;
+        if (isViewingExpiring) matchesFilter = daysRemaining > 0 && daysRemaining <= 30;
+        
+        return matchesSearch && matchesFilter;
+    });
+
+    // Ordenar por ID descendente
+    filteredBusinesses.sort((a, b) => {
+        const aNum = parseInt(a.businessNumber.split('-')[1]);
+        const bNum = parseInt(b.businessNumber.split('-')[1]);
+        return bNum - aNum;
+    });
+
+    // Configurar PDF
+    const title = `Reporte de Negocios - ${new Date().toLocaleDateString('es-ES')}`;
+    const headers = [
+        "ID Negocio",
+        "Nombre Negocio",
+        "Propietario",
+        "Teléfono",
+        "Inicio Membresía",
+        "Fin Membresía",
+        "Días Restantes",
+        "Estado"
+    ];
+
+    const data = filteredBusinesses.map(business => {
+        const days = getDaysRemaining(business.endDate);
+        let estado = 'Activo';
+        if (days <= 0) estado = 'Expirado';
+        if (days > 0 && days <= 30) estado = 'Próximo a vencer';
+        
+        return [
+            business.businessNumber,
+            business.businessName,
+            business.ownerName,
+            business.phoneNumber,
+            formatDate(business.startDate),
+            formatDate(business.endDate),
+            days > 0 ? days : '0',
+            estado
+        ];
+    });
+
+    // Generar PDF
+    doc.setFontSize(16);
+    doc.text(title, 15, 20);
+    doc.autoTable({
+        head: [headers],
+        body: data,
+        startY: 30,
+        theme: 'grid',
+        styles: { fontSize: 9 },
+        headStyles: { 
+            fillColor: [41, 128, 185], 
+            textColor: 255,
+            fontSize: 10
+        }
+    });
+
+    doc.save(`reporte-negocios-${new Date().toISOString().split('T')[0]}.pdf`);
+}
+      
+      
         // Handle window resize to switch between card and table views
         window.addEventListener('resize', () => {
             renderBusinesses();
